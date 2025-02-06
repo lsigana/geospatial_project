@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geospatial Analysis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Didact+Gothic&display=swap">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Didact Gothic', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h2 {
+            margin-top: 20px;  /* Adds space above the title */
+            margin-bottom: 10px;  /* Adds space below the title */
+            text-align: center;
+        }
+        #map {
+            width: 100%;  /* Ensure the map takes up the full width */
+            height: 500px;  /* Adjust the height of the map */
+            margin-top: 20px;  /* Adds space above the map */
+        }
+    </style>
+</head>
+<body>
+    <h2>Geospatial Road Network & Water Access Map</h2>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Initialize map centered at Nairobi
+        var map = L.map('map').setView([-1.286389, 36.817223], 12); // Center on Nairobi
+
+        // Load OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+         // Define custom marker icons with colors
+        var waterIcon = L.icon({
+            iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+        });
+
+        var hospitalIcon = L.icon({
+            iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+        });
+
+        var schoolIcon = L.icon({
+            iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+        });
+
+        //Fetch data from flast API
+        fetch("/data")
+            .then((response) => response.json())
+            .then((data) => {
+                //Add road network as a GeoJSON layer 
+                L.geoJSON(JSON.parse(data.roads),{
+                    style: {color: "grey", weight: 2, opacity: 0.4},
+                }).addTo(map);
+                // Ensure the road network appears below labels (lower z-index)
+                roadNetworkLayer.setZIndex(1);  // Set a lower z-index for roads
+                // Add water points as markers
+                data.water_points.forEach((point) => {
+                    L.marker([point.lat, point.lng], { icon: waterIcon })
+                        .addTo(map)
+                        .bindPopup(`<b>Water Point:</b> ${point.name}`);
+                });
+                // Add hospitals
+                data.hospitals.forEach((point) => {
+                    L.marker([point.lat, point.lng], { icon: hospitalIcon })
+                        .addTo(map)
+                        .bindPopup(`<b>Hospital:</b> ${point.name}`);
+                });
+
+                // Add schools
+                data.schools.forEach((point) => {
+                    L.marker([point.lat, point.lng], { icon: schoolIcon })
+                        .addTo(map)
+                        .bindPopup(`<b>School:</b> ${point.name}`);
+                });
+                // Function to add markers
+                function addMarkers(locations, color, iconType) {
+                    locations.forEach((place) => {
+                        var marker = L.marker([place.lat, place.lng], {
+                            icon: L.divIcon({
+                                className: "custom-marker",
+                                html: `<div style="background:${color};width:12px;height:12px;border-radius:50%;"></div>`,
+                            }),
+                        }).addTo(map);
+                        marker.bindPopup(`<b>${place.name}</b> (${iconType})`);
+                    });
+                }
+                // Add different markers for each category
+                addMarkers(data.schools, "blue", "School");
+                addMarkers(data.hospitals, "red", "Hospital");
+                addMarkers(data.water_points, "green", "Water Point");
+            })
+            .catch((error) => console.error("Error loading data:", error));
+        });
+
+        // Fetch and display road network
+        fetch("/road_network")
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: { color: "blue", weight: 2 }
+                }).addTo(map);
+            })
+            .catch(error => console.error("Error loading road network:", error));
+    </script>
+</body>
+</html>
+
